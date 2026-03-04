@@ -64,5 +64,32 @@ app.post('/api/speak', async (req, res) => {
   }
 });
 
+app.post('/api/track', async (req, res) => {
+  const { question, response, userAgent, sessionId } = req.body;
+  try {
+    await supabase.from('conversations').insert({
+      question,
+      response,
+      user_agent: userAgent,
+      session_id: sessionId,
+      timestamp: new Date().toISOString()
+    });
+    const slackWebhook = process.env.SLACK_WEBHOOK_URL;
+    if (slackWebhook) {
+      await fetch(slackWebhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `🤖 *priyank.exe got a visitor!*\n\n*Asked:* ${question}\n\n*Response:* ${(response || '').substring(0, 200)}...\n\n*Time:* ${new Date().toLocaleString()}\n*Device:* ${(userAgent || '').substring(0, 80)}`
+        })
+      });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Track error:', err);
+    res.json({ success: false });
+  }
+});
+
 app.listen(3001, () => console.log('Proxy running on port 3001'));
 

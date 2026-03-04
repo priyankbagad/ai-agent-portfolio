@@ -102,6 +102,8 @@ export default function App() {
   );
 
   const chatRef = useRef(null);
+  const messageRef = useRef(null);
+  const [lastAssistantId, setLastAssistantId] = useState(null);
 
   useEffect(() => {
     const full = 'priyank.exe';
@@ -152,14 +154,15 @@ export default function App() {
   );
 
   useEffect(() => {
-    const el = chatRef.current;
-    if (!el) return;
-    try {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-    } catch (e) {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [visibleMessages.length, isThinking]);
+    if (!lastAssistantId) return;
+    const id = window.setTimeout(() => {
+      messageRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [lastAssistantId]);
 
   const exportChat = () => {
     const doc = new jsPDF();
@@ -181,6 +184,29 @@ export default function App() {
         }
       });
     doc.save('priyank-conversation.pdf');
+  };
+
+  const trackConversation = async (question, response) => {
+    try {
+      const proxyUrl = process.env.REACT_APP_PROXY_URL || 'http://localhost:3001';
+      let sessionId = sessionStorage.getItem('sessionId');
+      if (!sessionId) {
+        sessionId = Math.random().toString(36).substring(7);
+        sessionStorage.setItem('sessionId', sessionId);
+      }
+      await fetch(`${proxyUrl}/api/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question,
+          response,
+          userAgent: navigator.userAgent,
+          sessionId,
+        }),
+      });
+    } catch (err) {
+      // fail silently, don't break the app
+    }
   };
 
   async function handleInitialize() {
@@ -334,6 +360,7 @@ export default function App() {
     setIsThinking(true);
 
     let assistantText = '';
+    let claudeOk = false;
 
     try {
       const conversation = nextMessages
@@ -342,6 +369,7 @@ export default function App() {
 
       const replyText = await askClaude(conversation);
       assistantText = replyText || "Sorry, I'm having trouble connecting right now.";
+      claudeOk = true;
     } catch (e) {
       assistantText = "Sorry, I'm having trouble connecting right now.";
     } finally {
@@ -355,6 +383,8 @@ export default function App() {
     };
 
     setMessages((m) => [...m, assistantMsg]);
+    setLastAssistantId(assistantMsg.id);
+    if (claudeOk) trackConversation(text, assistantText);
 
     try {
       const audio = await speakText(assistantText);
@@ -526,6 +556,7 @@ export default function App() {
                 <motion.div
                   key={m.id}
                   className="msgAI"
+                  ref={m.role === 'assistant' && m.id === lastAssistantId ? messageRef : undefined}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}

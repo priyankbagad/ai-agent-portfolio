@@ -10,6 +10,7 @@ import AvatarParticles from './components/AvatarParticles';
 import SplashScreen from './components/SplashScreen';
 import { Download, FileDown, Github, Globe, Linkedin } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { unlockAudio } from './lib/unlockAudio';
 
 function ThinkingIndicator() {
   return (
@@ -130,6 +131,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const unlock = () => {
+      unlockAudio();
+
+      // Remove listeners after first interaction
+      document.removeEventListener('touchstart', unlock);
+      document.removeEventListener('touchend', unlock);
+      document.removeEventListener('click', unlock);
+    };
+
+    document.addEventListener('touchstart', unlock);
+    document.addEventListener('touchend', unlock);
+    document.addEventListener('click', unlock);
+
+    return () => {
+      document.removeEventListener('touchstart', unlock);
+      document.removeEventListener('touchend', unlock);
+      document.removeEventListener('click', unlock);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const proxyUrl = process.env.REACT_APP_PROXY_URL || 'http://localhost:3001';
 
@@ -244,7 +266,7 @@ export default function App() {
 
     const greeting = "Hey — I'm Priyank. Ask me anything.";
     const audio = await speakText(greeting);
-    if (audio) {
+    if (audio && !audio.error) {
       setCurrentAudio(audio);
       setIsSpeaking(true);
       const prev = audio.onended;
@@ -410,7 +432,7 @@ export default function App() {
 
     try {
       const audio = await speakText(assistantText);
-      if (audio) {
+      if (audio && !audio.error) {
         setCurrentAudio(audio);
         setIsSpeaking(true);
         const prev = audio.onended;

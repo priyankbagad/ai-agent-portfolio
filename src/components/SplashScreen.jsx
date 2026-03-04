@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { unlockAudio } from '../lib/unlockAudio';
 
 function mulberry32(seed) {
   return function () {
@@ -61,6 +62,9 @@ export default function SplashScreen({ onInitialize }) {
 
   async function handleClick() {
     if (leaving) return;
+
+    unlockAudio();
+
     setBurst(true);
     setLeaving(true);
     try {

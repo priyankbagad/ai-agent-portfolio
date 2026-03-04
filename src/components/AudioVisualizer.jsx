@@ -47,6 +47,59 @@ export default function AudioVisualizer({ audio, bars = 40 }) {
 
     if (!audio) return;
 
+    // WebAudio playback handle support (used on iOS for reliability)
+    if (audio?.kind === 'webaudio') {
+      const ctx = audio.ctx;
+      const analyser = audio.analyser;
+      if (!ctx || !analyser) return;
+
+      analyserRef.current = analyser;
+      dataRef.current = new Uint8Array(analyser.frequencyBinCount);
+
+      const onStart = async () => {
+        try {
+          if (ctx.state === 'suspended') await ctx.resume();
+        } catch (e) {
+          // ignore
+        }
+        setActive(true);
+      };
+
+      onStart();
+
+      const loop = () => {
+        const a = analyserRef.current;
+        const arr = dataRef.current;
+        if (!a || !arr) return;
+
+        if (audio.ended) {
+          setActive(false);
+          rafRef.current = null;
+          return;
+        }
+
+        a.getByteFrequencyData(arr);
+        const step = Math.max(1, Math.floor(arr.length / bars));
+        const maxH = maxBarHeightRef.current;
+        for (let i = 0; i < bars; i += 1) {
+          const idx = i * step;
+          const v = arr[idx] / 255;
+          const h = 2 + Math.min(maxH, Math.floor(v * maxH));
+          const el = barRefs.current[i];
+          if (el) el.style.height = `${h}px`;
+        }
+
+        rafRef.current = requestAnimationFrame(loop);
+      };
+
+      rafRef.current = requestAnimationFrame(loop);
+      return () => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+        setActive(false);
+      };
+    }
+
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
 

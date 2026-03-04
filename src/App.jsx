@@ -58,6 +58,22 @@ export default function App() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentAudio, setCurrentAudio] = useState(null);
   const [visitorCount, setVisitorCount] = useState(null);
+  const MAX_PROMPTS = 20;
+  const [promptCount, setPromptCount] = useState(() => {
+    try {
+      const lastReset = localStorage.getItem('promptCountReset');
+      const now = Date.now();
+      if (!lastReset || now - parseInt(lastReset, 10) > 86400000) {
+        localStorage.setItem('promptCount', '0');
+        localStorage.setItem('promptCountReset', now.toString());
+        return 0;
+      }
+      const stored = parseInt(localStorage.getItem('promptCount') || '0', 10);
+      return Number.isFinite(stored) ? stored : 0;
+    } catch (e) {
+      return 0;
+    }
+  });
   const recognitionRef = useRef(null);
   const liveTranscriptRef = useRef('');
   const [isVoiceSupported, setIsVoiceSupported] = useState(true);
@@ -98,9 +114,12 @@ export default function App() {
     []
   );
 
+  const isPromptLimitReached = promptCount >= MAX_PROMPTS;
+  const promptsRemaining = Math.max(0, MAX_PROMPTS - promptCount);
+
   const canSend = useMemo(
-    () => !isThinking && draft.trim().length > 0,
-    [draft, isThinking]
+    () => !isThinking && !isPromptLimitReached && draft.trim().length > 0,
+    [draft, isThinking, isPromptLimitReached]
   );
 
   const chatRef = useRef(null);
@@ -128,6 +147,20 @@ export default function App() {
       (typeof window.webkitSpeechRecognition !== 'undefined' ||
         typeof window.SpeechRecognition !== 'undefined');
     setIsVoiceSupported(!!supported);
+  }, []);
+
+  useEffect(() => {
+    try {
+      const lastReset = localStorage.getItem('promptCountReset');
+      const now = Date.now();
+      if (!lastReset || now - parseInt(lastReset, 10) > 86400000) {
+        localStorage.setItem('promptCount', '0');
+        localStorage.setItem('promptCountReset', now.toString());
+        setPromptCount(0);
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   useEffect(() => {
@@ -284,8 +317,16 @@ export default function App() {
   const stopSpeaking = () => {
     try {
       if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
+        if (typeof currentAudio.pause === 'function') {
+          currentAudio.pause();
+          try {
+            currentAudio.currentTime = 0;
+          } catch (e) {
+            // ignore
+          }
+        } else if (typeof currentAudio.stop === 'function') {
+          currentAudio.stop();
+        }
       }
     } catch (e) {
       // ignore
@@ -308,6 +349,7 @@ export default function App() {
   };
 
   const startListening = () => {
+    if (isPromptLimitReached) return;
     if (currentAudio) stopSpeaking();
 
     setMicBanner('');
@@ -380,17 +422,53 @@ export default function App() {
       if (e.key?.toLowerCase?.() !== 's') return;
       const tag = e.target?.tagName?.toLowerCase?.();
       if (tag === 'textarea' || tag === 'input') return;
+      if (isPromptLimitReached) return;
       e.preventDefault();
       startListening();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isVoiceSupported, isVoiceListening]);
+  }, [isVoiceSupported, isVoiceListening, isPromptLimitReached]);
+
+  const showPromptLimitMessage = () => {
+    const id = crypto?.randomUUID?.() ?? String(Date.now() + Math.random());
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.kind === 'limit') return prev;
+      return [
+        ...prev,
+        {
+          id,
+          role: 'assistant',
+          kind: 'limit',
+          content:
+            "You've reached the 20 message limit for this session. To continue the conversation, reach out to Priyank directly at bagad.pr@northeastern.edu or connect on LinkedIn!",
+        },
+      ];
+    });
+    setLastAssistantId(id);
+  };
 
   async function sendMessage(overrideText) {
     const text = (overrideText ?? draft).trim();
     if (!text || isThinking) return;
+
+    if (isPromptLimitReached) {
+      showPromptLimitMessage();
+      return;
+    }
+
+    const newCount = promptCount + 1;
+    setPromptCount(newCount);
+    try {
+      localStorage.setItem('promptCount', newCount.toString());
+      if (!localStorage.getItem('promptCountReset')) {
+        localStorage.setItem('promptCountReset', Date.now().toString());
+      }
+    } catch (e) {
+      // ignore
+    }
 
     const userMsg = {
       id: crypto?.randomUUID?.() ?? String(Date.now() + Math.random()),
@@ -565,6 +643,7 @@ export default function App() {
               type="button"
               className={`speakBtn ${isVoiceListening ? 'listening' : ''}`}
               onClick={startListening}
+              disabled={isPromptLimitReached}
               onMouseEnter={() => {
                 if (!isVoiceSupported) setShowVoiceTooltip(true);
               }}
@@ -618,6 +697,21 @@ export default function App() {
                   transition={{ duration: 0.35, ease: 'easeOut' }}
                 >
                   {m.content}
+                  {m.kind === 'limit' ? (
+                    <div className="limitActions">
+                      <a className="limitBtn" href="mailto:bagad.pr@northeastern.edu">
+                        ✉️ Email Priyank
+                      </a>
+                      <a
+                        className="limitBtn"
+                        href="https://linkedin.com/in/priyankbagad"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        💼 LinkedIn
+                      </a>
+                    </div>
+                  ) : null}
                 </motion.div>
               );
             })}
@@ -642,7 +736,7 @@ export default function App() {
               type="button"
               className="chip"
               onClick={() => sendMessage(s)}
-              disabled={isThinking}
+              disabled={isThinking || isPromptLimitReached}
             >
               {s}
             </button>
@@ -662,6 +756,9 @@ export default function App() {
 
       <div className="bottomDock" role="group" aria-label="Input">
         <div className="bottomBar bottomBarCentered">
+          {promptsRemaining <= 5 && promptsRemaining > 0 ? (
+            <div className="promptCounter">{promptsRemaining} questions remaining</div>
+          ) : null}
           <div className="inputWrap">
             <textarea
               className="textInput"
@@ -682,7 +779,7 @@ export default function App() {
               type="button"
               className="sendBtn"
               onClick={() => sendMessage()}
-              disabled={!canSend}
+              disabled={!canSend || isPromptLimitReached}
               aria-label="Send message"
             >
               <PaperPlaneIcon className="sendIcon" />

@@ -318,6 +318,25 @@ textarea {
   transform: translateY(0);
 }
 
+.speakBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.speakBtn:disabled:hover {
+  background: transparent;
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: none;
+  transform: none;
+}
+
+.speakBtn:disabled .dot {
+  animation: none;
+  opacity: 0.5;
+}
+
 .dot {
   width: 10px;
   height: 10px;
@@ -685,6 +704,38 @@ textarea {
   text-align: center;
   text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
   white-space: pre-wrap;
+}
+
+.limitActions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.limitBtn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.06);
+  color: rgba(245, 158, 11, 0.95);
+  text-decoration: none;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease,
+    opacity 140ms ease;
+}
+
+.limitBtn:hover {
+  transform: translateY(-1px);
+  background: rgba(245, 158, 11, 0.10);
+  border-color: rgba(245, 158, 11, 0.70);
+}
+
+.limitBtn:active {
+  transform: translateY(0);
 }
 
 .chips {
@@ -1077,6 +1128,14 @@ textarea {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+}
+
+.promptCounter {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: rgba(245, 158, 11, 0.95);
+  opacity: 0.4;
+  text-align: center;
 }
 
 .micBtn {

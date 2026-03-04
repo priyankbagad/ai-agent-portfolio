@@ -1,6 +1,7 @@
 export async function speakText(text) {
   try {
-    const response = await fetch('http://localhost:3001/api/speak', {
+    const proxyUrl = process.env.REACT_APP_PROXY_URL || 'http://localhost:3001';
+    const response = await fetch(`${proxyUrl}/api/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text })

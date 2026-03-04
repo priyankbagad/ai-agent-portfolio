@@ -14,7 +14,8 @@ export async function searchKnowledge(query) {
     console.log('Query embedding length:', queryEmbedding.length);
 
     // Step 2: Vector search via local proxy
-    const response = await fetch('http://localhost:3001/api/search', {
+    const proxyUrl = process.env.REACT_APP_PROXY_URL || 'http://localhost:3001';
+    const response = await fetch(`${proxyUrl}/api/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ embedding: queryEmbedding }),

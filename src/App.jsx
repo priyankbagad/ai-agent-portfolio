@@ -56,7 +56,7 @@ export default function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentAudio, setCurrentAudio] = useState(null);
-  const [visitorCount, setVisitorCount] = useState(0);
+  const [visitorCount, setVisitorCount] = useState(null);
   const recognitionRef = useRef(null);
   const liveTranscriptRef = useRef('');
   const [isVoiceSupported, setIsVoiceSupported] = useState(true);
@@ -142,7 +142,7 @@ export default function App() {
       })
       .catch(() => {
         if (cancelled) return;
-        setVisitorCount(0);
+        setVisitorCount(null);
       });
 
     return () => {
@@ -453,7 +453,6 @@ export default function App() {
           <span className="statusDot" aria-label={`Status: ${avatarState}`} />
         </div>
         <div className="subtitle">{subtitles[subtitleIndex]}</div>
-        <div className="visitorLine">&gt; {visitorCount} recruiters visited</div>
 
         <div className="social" aria-label="Social links">
           <a
@@ -503,6 +502,17 @@ export default function App() {
             <Avatar state={avatarState} />
           </div>
         </div>
+
+        {typeof visitorCount === 'number' ? (
+          <motion.div
+            className="visitorBadge"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1.1, ease: 'easeOut', delay: 0.35 }}
+          >
+            You're visitor #{visitorCount + 1}
+          </motion.div>
+        ) : null}
 
         <div className="voiceArea" aria-label="Voice controls">
           {micBanner ? <div className="micBanner">{micBanner}</div> : null}

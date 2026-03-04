@@ -92,11 +92,11 @@ app.post('/api/track', async (req, res) => {
 });
 
 app.get('/api/visitors', async (req, res) => {
-  const { data, error } = await supabase.from('conversations').select('session_id');
-
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('session_id');
   if (error) return res.json({ count: 0 });
-
-  const uniqueSessions = new Set(data.map((r) => r.session_id));
+  const uniqueSessions = new Set(data.map(r => r.session_id));
   res.json({ count: uniqueSessions.size });
 });
 

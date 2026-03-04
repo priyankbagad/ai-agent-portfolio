@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const { Readable } = require('stream');
 require('dotenv').config();
 
 const app = express();
@@ -55,8 +56,18 @@ app.post('/api/speak', async (req, res) => {
       console.error('ElevenLabs error:', err);
       return res.status(response.status).json({ error: err });
     }
-    const arrayBuffer = await response.arrayBuffer();
     res.set('Content-Type', 'audio/mpeg');
+    res.set('Transfer-Encoding', 'chunked');
+    res.set('Cache-Control', 'no-cache');
+
+    // Stream audio chunks as they arrive
+    if (response.body) {
+      Readable.fromWeb(response.body).pipe(res);
+      return;
+    }
+
+    // Fallback (should be rare)
+    const arrayBuffer = await response.arrayBuffer();
     res.send(Buffer.from(arrayBuffer));
   } catch (err) {
     console.error('Speak error:', err);

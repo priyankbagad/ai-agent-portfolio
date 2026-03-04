@@ -504,13 +504,18 @@ export default function App() {
       content: assistantText,
     };
 
+    // Update UI immediately
     setMessages((m) => [...m, assistantMsg]);
     setLastAssistantId(assistantMsg.id);
-    if (claudeOk) trackConversation(text, assistantText);
 
-    try {
-      const audio = await speakText(assistantText);
-      if (audio && !audio.error) {
+    // Fire-and-forget side effects (run in parallel with UI update)
+    if (claudeOk) {
+      trackConversation(text, assistantText);
+    }
+
+    speakText(assistantText)
+      .then((audio) => {
+        if (!audio || audio.error) return;
         setCurrentAudio(audio);
         setIsSpeaking(true);
         const prev = audio.onended;
@@ -522,10 +527,10 @@ export default function App() {
             setCurrentAudio(null);
           }
         };
-      }
-    } catch (e) {
-      // ignored
-    }
+      })
+      .catch(() => {
+        // ignore
+      });
   }
 
   function onInputKeyDown(e) {

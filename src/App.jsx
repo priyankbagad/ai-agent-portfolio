@@ -56,6 +56,7 @@ export default function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentAudio, setCurrentAudio] = useState(null);
+  const [visitorCount, setVisitorCount] = useState(0);
   const recognitionRef = useRef(null);
   const liveTranscriptRef = useRef('');
   const [isVoiceSupported, setIsVoiceSupported] = useState(true);
@@ -126,6 +127,27 @@ export default function App() {
       (typeof window.webkitSpeechRecognition !== 'undefined' ||
         typeof window.SpeechRecognition !== 'undefined');
     setIsVoiceSupported(!!supported);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const proxyUrl = process.env.REACT_APP_PROXY_URL || 'http://localhost:3001';
+
+    fetch(`${proxyUrl}/api/visitors`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled) return;
+        const n = typeof j?.count === 'number' ? j.count : 0;
+        setVisitorCount(n);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setVisitorCount(0);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const subtitles = useMemo(
@@ -431,6 +453,7 @@ export default function App() {
           <span className="statusDot" aria-label={`Status: ${avatarState}`} />
         </div>
         <div className="subtitle">{subtitles[subtitleIndex]}</div>
+        <div className="visitorLine">&gt; {visitorCount} recruiters visited</div>
 
         <div className="social" aria-label="Social links">
           <a
